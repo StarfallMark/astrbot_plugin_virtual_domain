@@ -144,4 +144,4 @@ else
     fi
     echo "Linux 客户端已生成：$OUTPUT_ROOT/VirtualDomain"
 fi
-echo "目标平台：$PLATFORM-$ARCH；构建模式：$MODE"
+echo "目标平台：${PLATFORM}-${ARCH}；构建模式：${MODE}"
