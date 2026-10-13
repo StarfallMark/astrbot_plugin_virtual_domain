@@ -120,8 +120,9 @@ jobs:
         if: runner.os != 'Windows'
         shell: bash
         run: |
+          platform="$(printf '%s' "${RUNNER_OS}" | tr '[:upper:]' '[:lower:]')"
           python ./verify_package.py \
-            --platform "${RUNNER_OS,,}" \
+            --platform "$platform" \
             --package "${RUNNER_TEMP}/virtual-domain-${{ matrix.artifact }}"
 
       - name: Upload client package
