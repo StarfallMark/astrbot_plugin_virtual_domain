@@ -1,0 +1,8 @@
+{
+  "provider": "gemini",
+  "model": "gemini-3.8-flash-high",
+  "api_key": "在这里填写模型 API Key",
+  "endpoint": "https://generativelanguage.googleapis.com/v1beta",
+  "timeout": 120
+}
+

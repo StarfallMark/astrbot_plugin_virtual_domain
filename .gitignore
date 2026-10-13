@@ -1,0 +1,49 @@
+# Python caches and environments
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+*.egg-info/
+
+# Build output
+build/
+dist/
+*.spec
+
+# Local settings and model credentials
+.env
+.env.*
+!.env.example
+server/config/model.json
+**/*credentials*.json
+**/*secrets*.json
+
+# Runtime state, databases, and logs
+server/data/
+*.sqlite
+*.sqlite3
+*.db
+*.db-wal
+*.db-shm
+*.log
+**/logs/
+
+# Private keys, certificates, and encrypted local vaults
+*.pem
+*.key
+*.p12
+*.pfx
+*.enc
+*.crt
+*.cer
+*.p8
+
+# OS and editor files
+.DS_Store
+Thumbs.db
+Desktop.ini
+.idea/
+.vscode/

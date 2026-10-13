@@ -1,0 +1,166 @@
+name: Build native desktop clients
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - "client/**"
+      - "server/**"
+      - ".github/workflows/build-clients.yml"
+      - "README.md"
+  push:
+    paths:
+      - "client/**"
+      - "server/**"
+      - ".github/workflows/build-clients.yml"
+      - "README.md"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: ${{ matrix.artifact }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: windows-latest
+            architecture: x64
+            artifact: windows-x86_64
+          - runner: ubuntu-latest
+            architecture: x64
+            artifact: linux-x86_64
+          - runner: ubuntu-24.04-arm
+            architecture: arm64
+            artifact: linux-arm64
+          - runner: macos-15-intel
+            architecture: x64
+            artifact: macos-x86_64
+          - runner: macos-latest
+            architecture: arm64
+            artifact: macos-arm64
+
+    defaults:
+      run:
+        working-directory: client
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          architecture: ${{ matrix.architecture }}
+
+      - name: Install Linux Qt build dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes \
+            libxcb-cursor0 \
+            libxcb-icccm4 \
+            libxcb-image0 \
+            libxcb-keysyms1 \
+            libxcb-randr0 \
+            libxcb-render-util0 \
+            libxcb-xinerama0 \
+            libxcb-xkb1 \
+            libxkbcommon-x11-0
+
+      - name: Install client packaging dependencies
+        run: python -m pip install --upgrade pip && python -m pip install -e ".[packaging]"
+
+      - name: Build Windows executable
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $output = Join-Path $env:RUNNER_TEMP "virtual-domain-client"
+          $build = Join-Path $env:RUNNER_TEMP "virtual-domain-build"
+          .\build_client.ps1 -OutputRoot $output -BuildRoot $build
+          Copy-Item .\README.txt (Join-Path $output "README.txt")
+          $packageFiles = @(
+            (Join-Path $output "VirtualDomain.exe"),
+            (Join-Path $output "README.txt")
+          )
+          Compress-Archive -LiteralPath $packageFiles `
+            -DestinationPath (Join-Path $env:RUNNER_TEMP "virtual-domain-${{ matrix.artifact }}.zip")
+
+      - name: Build Linux or macOS application
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          set -euo pipefail
+          output="${RUNNER_TEMP}/virtual-domain-client"
+          sh ./build_client.sh --onedir --output "$output"
+          if [[ "${RUNNER_OS}" == "Linux" ]]; then
+            cp README.txt "${output}/README.txt"
+            tar -czf "${RUNNER_TEMP}/virtual-domain-${{ matrix.artifact }}.tar.gz" \
+              -C "$output" VirtualDomain README.txt
+          else
+            stage="${RUNNER_TEMP}/virtual-domain-${{ matrix.artifact }}"
+            mkdir -p "$stage"
+            cp -R "${output}/VirtualDomain.app" "$stage/"
+            cp README.txt "$stage/README.txt"
+            ditto -c -k --sequesterRsrc \
+              "$stage" \
+              "${RUNNER_TEMP}/virtual-domain-${{ matrix.artifact }}.zip"
+          fi
+
+      - name: Verify Windows package and write checksum
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          python .\verify_package.py `
+            --platform windows `
+            --package "$env:RUNNER_TEMP\virtual-domain-${{ matrix.artifact }}"
+
+      - name: Verify Linux or macOS package and write checksum
+        if: runner.os != 'Windows'
+        shell: bash
+        run: |
+          python ./verify_package.py \
+            --platform "${RUNNER_OS,,}" \
+            --package "${RUNNER_TEMP}/virtual-domain-${{ matrix.artifact }}"
+
+      - name: Upload client package
+        uses: actions/upload-artifact@v7
+        with:
+          name: virtual-domain-${{ matrix.artifact }}
+          path: ${{ runner.temp }}/virtual-domain-${{ matrix.artifact }}.*
+          if-no-files-found: error
+          retention-days: 14
+
+  package-server-source:
+    name: server-source
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Stage portable server package
+        shell: bash
+        run: |
+          set -euo pipefail
+          stage="${RUNNER_TEMP}/virtual-domain-server"
+          mkdir -p "${stage}/config"
+          cp -R server/src "${stage}/src"
+          cp server/config/model.example.json "${stage}/config/model.example.json"
+          cp server/pyproject.toml \
+            server/README.md \
+            server/start_server.bat \
+            server/start_server.ps1 \
+            server/start_server.sh "${stage}/"
+          cd "${RUNNER_TEMP}"
+          zip -qr virtual-domain-server-source.zip virtual-domain-server
+          tar -czf virtual-domain-server-source.tar.gz virtual-domain-server
+
+      - name: Upload server source package
+        uses: actions/upload-artifact@v7
+        with:
+          name: virtual-domain-server-source
+          path: |
+            ${{ runner.temp }}/virtual-domain-server-source.zip
+            ${{ runner.temp }}/virtual-domain-server-source.tar.gz
+          if-no-files-found: error
+          retention-days: 14

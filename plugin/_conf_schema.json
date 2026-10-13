@@ -1,0 +1,37 @@
+{
+  "server_url": {
+    "type": "string",
+    "default": "http://127.0.0.1:8787",
+    "description": "虚拟域服务端地址。远程部署时请使用管理员提供的 TLS、局域网或组网地址。"
+  },
+  "tls_ca_file": {
+    "type": "string",
+    "default": "",
+    "description": "可选的服务端 CA PEM 文件路径；留空时使用系统信任根。HTTPS 始终校验证书与主机名。"
+  },
+  "tls_client_cert_file": {
+    "type": "string",
+    "default": "",
+    "description": "可选的双向 TLS 客户端 PEM 证书路径；需与私钥一起设置。"
+  },
+  "tls_client_key_file": {
+    "type": "string",
+    "default": "",
+    "description": "可选的双向 TLS 客户端 PEM 私钥路径；请限制文件访问权限。"
+  },
+  "connector_token": {
+    "type": "string",
+    "default": "",
+    "description": "AstrBot 专用连接凭证，不要填写普通游戏账号密码。"
+  },
+  "world_id": {
+    "type": "string",
+    "default": "",
+    "description": "旧配置保留字段；现在自动跟随服务端当前世界，无需填写。"
+  },
+  "admin_qq": {
+    "type": "string",
+    "default": "",
+    "description": "QQ 管理员账号绑定所使用的 QQ 号；只有完成 QQ 绑定的管理员账号可以通过私聊命令暂停或恢复世界。"
+  }
+}

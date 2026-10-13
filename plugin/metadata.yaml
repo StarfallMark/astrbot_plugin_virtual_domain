@@ -1,0 +1,12 @@
+name: astrbot_plugin_virtual_domain
+display_name: 虚拟域
+desc: 连接自托管虚拟域服务端，让 AstrBot 以满血 Bot 身份参与持续性世界游戏。
+version: v0.1.0
+author: 虚拟域项目组
+category: 娱乐
+tags:
+  - 世界模拟
+  - 角色扮演
+  - 自托管
+  - 游戏
+astrbot_version: ">=4.24.0"

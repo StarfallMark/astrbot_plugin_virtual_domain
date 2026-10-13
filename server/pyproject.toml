@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "virtual-domain-server"
+version = "0.1.0"
+description = "虚拟域自托管服务端"
+requires-python = ">=3.11"
+dependencies = []
+
+[project.optional-dependencies]
+http = ["fastapi>=0.110", "uvicorn[standard]>=0.29"]
+models = ["httpx>=0.27", "cryptography>=42"]
+security = ["cryptography>=42"]
+
+[project.scripts]
+virtual-domain-server = "virtual_domain_server.server.__main__:main"
+virtual-domain-certificates = "virtual_domain_server.security.certificates:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+
+[tool.setuptools.packages.find]
+where = ["src"]
