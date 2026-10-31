@@ -8,35 +8,54 @@ on:
         type: string
         required: true
         default: v0.1.0
+      platform:
+        description: Platform group to verify
+        type: choice
+        default: all
+        options:
+          - all
+          - linux
+          - macos
 
 permissions:
   contents: read
 
 jobs:
+  platforms:
+    runs-on: ubuntu-latest
+    outputs:
+      targets: ${{ steps.matrix.outputs.targets }}
+    steps:
+      - id: matrix
+        env:
+          PLATFORM_GROUP: ${{ inputs.platform }}
+        run: |
+          python3 - <<'PY'
+          import json
+          import os
+          rows = [
+              {"runner": "ubuntu-latest", "architecture": "x64", "artifact": "linux-x86_64", "extension": "tar.gz"},
+              {"runner": "ubuntu-24.04-arm", "architecture": "arm64", "artifact": "linux-arm64", "extension": "tar.gz"},
+              {"runner": "macos-15-intel", "architecture": "x64", "artifact": "macos-x86_64", "extension": "zip"},
+              {"runner": "macos-latest", "architecture": "arm64", "artifact": "macos-arm64", "extension": "zip"},
+          ]
+          group = os.environ["PLATFORM_GROUP"]
+          targets = [row for row in rows if group == "all" or row["artifact"].startswith(group + "-")]
+          if not targets:
+              raise SystemExit("No matching runtime targets")
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write("targets=" + json.dumps(targets) + "\n")
+          PY
+
   runtime:
+    needs: platforms
     name: ${{ matrix.artifact }}
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 15
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - runner: ubuntu-latest
-            architecture: x64
-            artifact: linux-x86_64
-            extension: tar.gz
-          - runner: ubuntu-24.04-arm
-            architecture: arm64
-            artifact: linux-arm64
-            extension: tar.gz
-          - runner: macos-15-intel
-            architecture: x64
-            artifact: macos-x86_64
-            extension: zip
-          - runner: macos-latest
-            architecture: arm64
-            artifact: macos-arm64
-            extension: zip
+        include: ${{ fromJSON(needs.platforms.outputs.targets) }}
 
     env:
       PYTHONDONTWRITEBYTECODE: "1"
@@ -71,6 +90,23 @@ jobs:
       - name: Install the release desktop dependencies
         run: python -m pip install PySide6==6.8.3
 
+      - name: Diagnose Linux Qt dependencies
+        if: runner.os == 'Linux'
+        run: |
+          python - <<'PY'
+          import subprocess
+          from pathlib import Path
+          import PySide6
+          root = Path(PySide6.__file__).parent / "Qt"
+          for relative in ("plugins/platforms/libqxcb.so", "lib/libQt6XcbQpa.so.6"):
+              library = root / relative
+              print(str(library), flush=True)
+              result = subprocess.run(["ldd", str(library)], capture_output=True, text=True, check=True)
+              print(result.stdout, flush=True)
+              if "not found" in result.stdout:
+                  raise SystemExit("Qt shared library dependency is missing")
+          PY
+
       - name: Download the published package and checksum
         env:
           GH_TOKEN: ${{ github.token }}
@@ -86,6 +122,7 @@ jobs:
           PACKAGE_NAME: virtual-domain-${{ matrix.artifact }}.${{ matrix.extension }}
         run: |
           set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/runtime-report"
           args=(
             .github/scripts/verify_runtime.py
             --source "$GITHUB_WORKSPACE/runtime-source"
@@ -94,10 +131,12 @@ jobs:
           )
           if [[ "$RUNNER_OS" == "Linux" ]]; then
             export QT_QPA_PLATFORM=xcb
-            xvfb-run -a -s "-screen 0 1440x1000x24" python "${args[@]}"
+            export QT_DEBUG_PLUGINS=1
+            xvfb-run -a -s "-screen 0 1440x1000x24" python "${args[@]}" \
+              2>&1 | tee "$RUNNER_TEMP/runtime-report/runner.log"
           else
             export QT_QPA_PLATFORM=cocoa
-            python "${args[@]}"
+            python "${args[@]}" 2>&1 | tee "$RUNNER_TEMP/runtime-report/runner.log"
           fi
 
       - name: Upload runtime report and desktop screenshot
