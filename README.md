@@ -1,6 +1,6 @@
 # 虚拟域
 
-虚拟域由三个可独立部署的部分组成：AstrBot 连接器插件、独立服务端和 PySide6 桌面客户端。首版目标是 Windows、Linux、macOS 桌面使用；Windows 汇总候选已通过集中审核，Linux/macOS 本机打包脚本和 GitHub Actions 构建矩阵已就绪，四种非 Windows 发布包仍待产出。通用服务端源码 ZIP/tar.gz 已生成。OpenAI/Anthropic 与 QQ 的协议、用量和权限已有离线覆盖；真实上游调用和 QQ 平台事件留待实际使用反馈，不阻塞首版。当前唯一发布门槛是生成并核验 Linux x64、Linux ARM64、macOS Intel 和 macOS Apple Silicon 包，详见 [DESIGN.md](DESIGN.md)。测试运行记录保存在本机工作区的 `test/` 目录，不随本项目仓库发布。
+虚拟域由三个可独立部署的部分组成：AstrBot 连接器插件、独立服务端和 PySide6 桌面客户端。v0.1.0 已于 2026-10-13 发布 Windows、Linux x64/ARM64、macOS Intel/Apple Silicon 客户端及通用服务端源码 ZIP/tar.gz。Windows 汇总候选已通过集中审核；2026-10-31，四种 Linux/macOS 发布包也通过 GitHub 托管运行器上的启动检查，同版本源码通过基本桌面游玩与持久化检查。OpenAI/Anthropic 与 QQ 的协议、用量和权限已有离线覆盖；真实上游调用和 QQ 平台事件留待实际使用反馈。检查范围见 [.github/RUNTIME_CHECKS.md](.github/RUNTIME_CHECKS.md)，完整设计见 [DESIGN.md](DESIGN.md)。本地测试记录保存在开发工作区的 `test/`；CI 报告和截图通过 Actions 附件提供。
 
 第一版目标仍有效，没有撤回：交付独立服务端、可切换创作/加入模式的原生桌面客户端和可选 AstrBot 插件；完成 Bot 与用户共同参演的世界创建、游玩、记忆、额度、账号、存档和管理闭环。手机端是后续计划。当前进度与剩余验收项以 [DESIGN.md](DESIGN.md) 开头的首版目标和实现状态为准。
 
@@ -76,9 +76,9 @@ python3 -m pip install -e ".[packaging]"
 sh build_client.sh
 ```
 
-默认输出在 `client/dist/<系统>-<架构>/`：Linux 为 `VirtualDomain/` 目录版，macOS 为 `VirtualDomain.app`。使用 `sh build_client.sh --onefile` 可构建单文件程序；macOS 默认目录版更适合作为 `.app` 分发。也可用 `--python` 指定 Python 解释器、`--output` 指定输出目录。Linux 打包结果依赖构建系统的基础 C 库版本，建议在计划支持的较旧 Linux 发行版上构建。不同 CPU 架构需要各自构建。Linux/macOS 的构建和运行尚未实测验收。
+默认输出在 `client/dist/<系统>-<架构>/`：Linux 为 `VirtualDomain/` 目录版，macOS 为 `VirtualDomain.app`。使用 `sh build_client.sh --onefile` 可构建单文件程序；macOS 默认目录版更适合作为 `.app` 分发。也可用 `--python` 指定 Python 解释器、`--output` 指定输出目录。Linux 打包结果依赖构建系统的基础 C 库版本，建议在计划支持的较旧 Linux 发行版上构建。不同 CPU 架构需要各自构建。四种 Linux/macOS 发布包已通过托管运行器启动检查；其他发行版、macOS 安装验证及完整人工操作仍需对应环境的使用反馈。Linux 还依赖系统图形组件；Debian/Ubuntu 的依赖安装说明见 [client/README.txt](client/README.txt)，包括本次检查发现的 `libxcb-shape0`。
 
-GitHub Actions 的 `Build native desktop clients` 工作流会为 Windows x64、Linux x64/ARM64、macOS Intel/Apple Silicon 分别打包桌面客户端，并同时生成不含密钥和运行数据的服务端源码 ZIP/tar.gz。工作流位于本项目根目录 `.github/workflows/build-clients.yml`；本项目作为独立仓库时，仓库根就是包含 `client/`、`server/`、`plugin/` 的本目录。推送相关文件后工作流会自动触发，也可在 GitHub Actions 页面手动运行。客户端构建会检查归档内容并附带 SHA-256 校验文件；构建产物短期保存。该工作流只负责构建，不代表已完成目标系统运行验收。服务端部署说明见 [server/README.md](server/README.md)。
+GitHub Actions 的 `Build native desktop clients` 工作流会为 Windows x64、Linux x64/ARM64、macOS Intel/Apple Silicon 分别打包桌面客户端，并同时生成不含密钥和运行数据的服务端源码 ZIP/tar.gz。工作流位于本项目根目录 `.github/workflows/build-clients.yml`；本项目作为独立仓库时，仓库根就是包含 `client/`、`server/`、`plugin/` 的本目录。推送相关文件后工作流会自动触发，也可在 GitHub Actions 页面手动运行。客户端构建会检查归档内容并附带 SHA-256 校验文件；构建产物短期保存。另有手动工作流 `Verify release runtime`，直接检查已发布安装包，并用同版本源码运行隔离的 HTTP/桌面游玩检查，可选择仅运行 Linux 或 macOS。服务端部署说明见 [server/README.md](server/README.md)。
 
 客户端在创作与加入模式间切换。创作模式需要管理员登录并使用服务端配对码建立管理连接；加入模式使用管理员给出的服务地址、连接条件和世界邀请。加入世界后可提交行动、在游戏内与 Bot 聊天，并查看世界屏幕、事件、在线状态和 Token 账本。服务端支持静止式和流动式世界，额度按实际返回用量记录。
 
@@ -131,13 +131,15 @@ astrbot/data/plugins/astrbot_plugin_virtual_domain/
 
 `/vd worlds` 只返回安全摘要；`invite`、`quota`、`pause`、`resume`、`switch`、`delete`、`backup` 与 `backups` 只接受绑定管理员的 QQ 私聊。`/vd invite [有效小时数]` 为当前世界生成一次性邀请码，默认 24 小时、最长 720 小时；`/vd invite revoke <邀请码>` 撤销当前世界尚未使用的邀请码，已兑换的邀请码不能撤销。邀请码只提供进入资格，连接地址和组网方式仍需管理员另行提供。额度查看同时校验插件配置的管理员 QQ 与已绑定的虚拟域管理员账号。切换时若旧世界有人在线，第一次请求只返回在线提示，管理员显式发送 `confirm` 后才断开玩家并通知旧世界，并由服务端再次校验账号权限。`/vd delete <世界ID>` 先展示待删除世界名称，第二条命令必须原样包含完整名称；服务端复核绑定管理员身份和名称，并保留审计记录。QQ 可创建和查看手动备份，文件下载、账号和配置管理仍在桌面客户端完成，行动和游戏内聊天也在桌面客户端中完成。隔离实机已验证绑定账号的游戏聊天进入绑定时记录的 AstrBot 日常会话，并在连续两条消息间回忆随机标记；这尚不能单独证明第三方长期记忆插件的持久化与检索效果。测试报告：`test/bound_chat_continuity_20261004.json`。
 
-## 验收进度更新（2026-10-12）
+## 验收进度更新（2026-10-31）
+
+v0.1.0 的 Linux x64/ARM64、macOS Intel/Apple Silicon 发布包均已完成 SHA-256、可执行权限和本机进程启动检查。同一 Release 标签的源码通过管理员初始化/配对、邀请注册、桌面登录/加入、一次行动、一次 Bot 聊天、用量账本、手动备份及重新打开 SQLite 后的数据读取。模型使用本地固定响应，实际外部模型请求为 0。macOS 使用 Cocoa，Linux 使用 Xvfb/X11；Linux 检查环境补齐 `libxcb-shape0` 后通过。发布包内部界面的完整操作、其他 Linux 发行版和 macOS Gatekeeper 尚不在本轮范围内。运行编号和证据见 [.github/RUNTIME_CHECKS.md](.github/RUNTIME_CHECKS.md)。
 
 Windows 汇总候选已完成一次集中审核：同一 EXE 通过注册与加入、假模型行动和聊天、备份恢复、Bot 模式双向切换、管理员一次性推演及服务重启后待回应恢复。报告位于 `test/runtime/v1-release-candidate-20261012/final-audit-temp-fixed/windows-final-audit.json`。审核使用本机隔离服务和假模型，没有连接真实模型、AstrBot 或 QQ。
 
 首次审核曾因测试机 `C:` 盘无可用空间导致 PyInstaller 解包失败；将审核临时目录放在 `test/` 所在的 `E:` 后，同一候选通过。该历史问题已解决，不是当前候选的启动缺陷。全插件 Gemini/AstrBot 游玩已有一次独立通过的隔离整轮，除非出现新故障，不重复运行。
 
-首版当前唯一待完成的发行项是生成并检查 Linux x64/ARM64、macOS Intel/Apple Silicon 客户端包；跨平台构建工作流已配置，但尚未触发。OpenAI 兼容和 Anthropic 的真实 Token 用量、真实 QQ 管理命令事件均作为实际使用反馈，不阻塞首版；对应的离线协议、用量解析、管理员身份与私聊权限用例已有覆盖。MemoryCompanion 匿名隔离、跨重启检索和并发持久化专项已通过。完整状态见 [DESIGN.md](DESIGN.md)；测试证据留在本机工作区的 `test/`，不包含在独立插件仓库中。
+首版发行包已全部生成、核验并发布，四种非 Windows 客户端也完成上述基础运行检查。OpenAI 兼容和 Anthropic 的真实 Token 用量、真实 QQ 管理命令事件均作为实际使用反馈；对应的离线协议、用量解析、管理员身份与私聊权限用例已有覆盖。MemoryCompanion 匿名隔离、跨重启检索和并发持久化专项已通过。完整状态见 [DESIGN.md](DESIGN.md)；本地测试证据留在工作区的 `test/`，不包含在独立插件仓库中。
 
 ## 测试
 
@@ -165,7 +167,7 @@ $env:PYTHONPATH = "$PWD\src"
 .\.venv\Scripts\python.exe -m unittest discover -s tests -v
 ```
 
-最近回归记录：服务端完整离线回归运行 214 项、213 项通过、1 项 Windows 不适用的 POSIX 权限测试跳过；AstrBot 插件 43 项通过。管理员节点回滚与 QQ 命令离线回归日志见 `test/server/unittest_qq_node_rollback_20261010.log` 和 `test/plugin/unittest_qq_node_rollback_20261010.log`。2026-10-12 Gemini/AstrBot 隔离整轮通过：两次玩家行动、两次 Bot 行动和游戏聊天成功，共 5 个世界事件；Bot、世界、记忆账本总计 141,986 Token，额度预留归零。此前 404 保留为历史间歇故障，若无新故障不重复整轮。报告与运行数据见 `test/runtime/gemini-resume-20261010-5994daae/` 和 `test/TEST_REPORT.md`。同日 Windows 汇总候选集中审核的五项均通过；早期 `Error` 窗口由测试机 `C:` 盘空间不足导致，现有报告记录通过时将 `TEMP`/`TMP` 放在 `E:` 盘。当前唯一待完成 Linux/macOS 四种桌面包生成与归档核验；OpenAI/Anthropic 真实调用及真实 QQ 事件作为实际使用反馈，MemoryCompanion 匿名隔离/重启/并发专项已通过，完整状态见 [DESIGN.md](DESIGN.md)。
+历史回归记录：服务端完整离线回归运行 214 项、213 项通过、1 项 Windows 不适用的 POSIX 权限测试跳过；AstrBot 插件 43 项通过。管理员节点回滚与 QQ 命令离线回归日志见 `test/server/unittest_qq_node_rollback_20261010.log` 和 `test/plugin/unittest_qq_node_rollback_20261010.log`。2026-10-12 Gemini/AstrBot 隔离整轮通过：两次玩家行动、两次 Bot 行动和游戏聊天成功，共 5 个世界事件；Bot、世界、记忆账本总计 141,986 Token，额度预留归零。此前 404 保留为历史间歇故障，若无新故障不重复整轮。报告与运行数据见 `test/runtime/gemini-resume-20261010-5994daae/` 和 `test/TEST_REPORT.md`。同日 Windows 汇总候选集中审核的五项均通过；早期 `Error` 窗口由测试机 `C:` 盘空间不足导致，现有报告记录通过时将 `TEMP`/`TMP` 放在 `E:` 盘。Linux/macOS 四种桌面包已于 2026-10-13 发布，并于 2026-10-31 完成基础运行检查；OpenAI/Anthropic 真实调用及真实 QQ 事件作为实际使用反馈，MemoryCompanion 匿名隔离/重启/并发专项已通过，完整状态见 [DESIGN.md](DESIGN.md)。
 
 
 
