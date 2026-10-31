@@ -1,0 +1,113 @@
+name: Verify release runtime
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_tag:
+        description: Published release to verify
+        type: string
+        required: true
+        default: v0.1.0
+
+permissions:
+  contents: read
+
+jobs:
+  runtime:
+    name: ${{ matrix.artifact }}
+    runs-on: ${{ matrix.runner }}
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: ubuntu-latest
+            architecture: x64
+            artifact: linux-x86_64
+            extension: tar.gz
+          - runner: ubuntu-24.04-arm
+            architecture: arm64
+            artifact: linux-arm64
+            extension: tar.gz
+          - runner: macos-15-intel
+            architecture: x64
+            artifact: macos-x86_64
+            extension: zip
+          - runner: macos-latest
+            architecture: arm64
+            artifact: macos-arm64
+            extension: zip
+
+    env:
+      PYTHONDONTWRITEBYTECODE: "1"
+      PYTHONUNBUFFERED: "1"
+      NO_PROXY: 127.0.0.1,localhost
+      RELEASE_TAG: ${{ inputs.release_tag }}
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Check out the release sources
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.release_tag }}
+          path: runtime-source
+
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+          architecture: ${{ matrix.architecture }}
+
+      - name: Install Linux display and Qt dependencies
+        if: runner.os == 'Linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes \
+            xvfb xauth fonts-noto-cjk libegl1 libgl1 \
+            libxcb-cursor0 libxcb-icccm4 libxcb-image0 libxcb-keysyms1 \
+            libxcb-randr0 libxcb-render-util0 libxcb-xinerama0 libxcb-xkb1 \
+            libxkbcommon-x11-0
+
+      - name: Install the release desktop dependencies
+        run: python -m pip install PySide6==6.8.3
+
+      - name: Download the published package and checksum
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          gh release download "$RELEASE_TAG" \
+            --pattern "virtual-domain-${{ matrix.artifact }}.${{ matrix.extension }}*" \
+            --dir "$RUNNER_TEMP/release-package"
+
+      - name: Verify native startup and isolated gameplay
+        shell: bash
+        env:
+          PACKAGE_NAME: virtual-domain-${{ matrix.artifact }}.${{ matrix.extension }}
+        run: |
+          set -euo pipefail
+          args=(
+            .github/scripts/verify_runtime.py
+            --source "$GITHUB_WORKSPACE/runtime-source"
+            --output "$RUNNER_TEMP/runtime-report"
+            --package "$RUNNER_TEMP/release-package/$PACKAGE_NAME"
+          )
+          if [[ "$RUNNER_OS" == "Linux" ]]; then
+            export QT_QPA_PLATFORM=xcb
+            xvfb-run -a -s "-screen 0 1440x1000x24" python "${args[@]}"
+          else
+            export QT_QPA_PLATFORM=cocoa
+            python "${args[@]}"
+          fi
+
+      - name: Upload runtime report and desktop screenshot
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: runtime-check-${{ matrix.artifact }}
+          path: |
+            ${{ runner.temp }}/runtime-report/report.json
+            ${{ runner.temp }}/runtime-report/*.png
+            ${{ runner.temp }}/runtime-report/*.log
+          if-no-files-found: warn
+          retention-days: 14
